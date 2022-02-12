@@ -117,3 +117,4 @@ dmypy.json
 .pyre/
 config_/config.json
 /dump/
+/token.txt
