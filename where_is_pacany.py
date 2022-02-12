@@ -5,14 +5,16 @@ import telebot
 from telebot import types
 from telebot.types import Message
 from loguru import logger
+
 token = ''
 
-GROUP_ID =-1001188592066
+GROUP_ID = -1001188592066
 
 with open('token') as token_file:
     token = token_file.read()
 
 bot = telebot.TeleBot(token)
+
 
 def name_is_valid(name: str) -> bool:
     with open('valid_names.txt', encoding='utf-8') as names:
@@ -44,17 +46,19 @@ def reply_to(message: Message, name: str):
 
     bot.reply_to(message, f'{prefix.strip().replace("{NAME}", name)} {case.strip()}')
 
+
 @bot.message_handler(commands=["loc"])
 def locs(message: Message):
     try:
         for admin in bot.get_chat_administrators(message.chat.id):
-            if admin.user.username == message.text.replace("/loc @",""):
+            if admin.user.username == message.text.replace("/loc @", ""):
                 keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
                 button_geo = types.KeyboardButton(text="Я тут сука", request_location=True)
                 keyboard.add(button_geo)
                 bot.send_message(admin.user.id, "Ответь сука", reply_markup=keyboard)
     except:
-        bot.send_message(message.chat.id , "SUKA YA NE MOGU NAYTI USERA V ADMINAH ILI ON MNE NE PISAL")
+        bot.send_message(message.chat.id, "SUKA YA NE MOGU NAYTI USERA V ADMINAH ILI ON MNE NE PISAL")
+
 
 @bot.message_handler(content_types=["location"])
 def forward(message):
@@ -79,9 +83,7 @@ def gde_ros(message: Message):
                     reply_to(message, name_found[0])
                     return
     except:
-        bot.send_message(message.chat.id , "DAZHE YA HUI ZHAET GDE ETOT EBLAN")
-
-
+        bot.send_message(message.chat.id, "DAZHE YA HUI ZHAET GDE ETOT EBLAN")
 
 
 bot.infinity_polling()
