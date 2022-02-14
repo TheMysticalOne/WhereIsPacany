@@ -1,7 +1,9 @@
 import random
+import os
 import re
 
 import telebot
+
 from telebot import types
 from telebot.types import Message
 from loguru import logger
@@ -13,8 +15,10 @@ GROUP_ID = -1001188592066
 with open('token') as token_file:
     token = token_file.read()
 
-bot = telebot.TeleBot(token)
+logger.debug(f'Loaded token: {token}')
+logger.debug(f'CWD: {os.getcwd()}')
 
+bot = telebot.TeleBot(token)
 
 def name_is_valid(name: str) -> bool:
     with open('valid_names.txt', encoding='utf-8') as names:
