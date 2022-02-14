@@ -72,7 +72,7 @@ def all(message: Message):
         for admin in bot.get_chat_administrators(message.chat.id):
             msg += f" @{admin.user.username}"
         msg += message.text
-        bot.send_message(message.chat.id, msg)
+        bot.send_message(message.chat.id, msg.replace("/all",""))
 
     except:
         bot.send_message(message.chat.id, "CHEGO BLYAT")
