@@ -20,6 +20,9 @@ logger.debug(f'CWD: {os.getcwd()}')
 
 bot = telebot.TeleBot(token)
 
+logger.debug(bot.get_webhook_info().ip_address)
+
+
 def name_is_valid(name: str) -> bool:
     with open('valid_names.txt', encoding='utf-8') as names:
         names = names.read()
@@ -40,19 +43,24 @@ def reply_to(message: Message, name: str):
         bot.reply_to(message, f'Я не знаю, кто такой {name}')
         return
 
-    with open('cases.txt', encoding='utf-8') as cases_file:
-        cases = cases_file.readlines()
-        case = random.choice(cases)
+    try:
+        with open('cases.txt', encoding='utf-8') as cases_file:
+            cases = cases_file.readlines()
+            case = random.choice(cases)
 
-    with open('prefix.txt', encoding='utf-8') as prefix_file:
-        prefixes = prefix_file.readlines()
-        prefix = random.choice(prefixes)
+        with open('prefix.txt', encoding='utf-8') as prefix_file:
+            prefixes = prefix_file.readlines()
+            prefix = random.choice(prefixes)
+
+    except:
+        pass
 
     bot.reply_to(message, f'{prefix.strip().replace("{NAME}", name)} {case.strip()}')
 
 
 @bot.message_handler(commands=["loc"])
 def locs(message: Message):
+    username = message.text.replace("/loc @", "")
     try:
         for admin in bot.get_chat_administrators(message.chat.id):
             if admin.user.username == message.text.replace("/loc @", ""):
@@ -61,17 +69,17 @@ def locs(message: Message):
                 keyboard.add(button_geo)
                 bot.send_message(admin.user.id, "Ответь сука", reply_markup=keyboard)
     except:
-        bot.send_message(message.chat.id, "SUKA YA NE MOGU NAYTI USERA V ADMINAH ILI ON MNE NE PISAL")
+        bot.send_message(message.chat.id, f"Чтобы запросить локацию, нужно чтобы {username} начал диалог с ботом"
+                                          f" и был в администраторах группы")
 
 
 @bot.message_handler(content_types=["location"])
 def forward(message):
     if message.location is not None:
-        # bot.forward_message(to_chat_id, from_chat_id, message_id)
         bot.forward_message(GROUP_ID, message.chat.id, message.id)
-        # logger.warning(message)
-        # logger.debug(message.location)
-        # logger.debug("latitude: %s; longitude: %s" % (message.location.latitude, message.location.longitude))
+        logger.warning(message)
+        logger.debug(message.location)
+        logger.debug("latitude: %s; longitude: %s" % (message.location.latitude, message.location.longitude))
 
 
 @bot.message_handler(func=lambda message: True)
@@ -87,7 +95,7 @@ def gde_pacany_handler(message: Message):
                     reply_to(message, name_found[0])
                     return
     except:
-        bot.send_message(message.chat.id, "DAZHE YA HUI ZHAET GDE ETOT EBLAN")
+        bot.send_message(message.chat.id, "Понятия не имею, где он :(")
 
 
 bot.infinity_polling()
