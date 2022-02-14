@@ -20,6 +20,7 @@ logger.debug(f'CWD: {os.getcwd()}')
 
 bot = telebot.TeleBot(token.strip())
 
+
 def name_is_valid(name: str) -> bool:
     with open('valid_names.txt', encoding='utf-8') as names:
         names = names.read()
@@ -62,6 +63,17 @@ def locs(message: Message):
                 bot.send_message(admin.user.id, "Ответь сука", reply_markup=keyboard)
     except:
         bot.send_message(message.chat.id, "SUKA YA NE MOGU NAYTI USERA V ADMINAH ILI ON MNE NE PISAL")
+
+
+@bot.message_handler(commands=["all"])
+def all(message: Message):
+    try:
+        msg = ""
+        for admin in bot.get_chat_administrators(message.chat.id):
+            msg += f" @{admin.user.username}"
+        msg += message.text
+    except:
+        bot.send_message(message.chat.id, "CHEGO BLYAT")
 
 
 @bot.message_handler(content_types=["location"])
