@@ -18,7 +18,7 @@ with open('token') as token_file:
 logger.debug(f'Loaded token: {token}')
 logger.debug(f'CWD: {os.getcwd()}')
 
-bot = telebot.TeleBot(token)
+bot = telebot.TeleBot(token.strip())
 
 def name_is_valid(name: str) -> bool:
     with open('valid_names.txt', encoding='utf-8') as names:
