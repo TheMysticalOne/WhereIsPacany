@@ -18,7 +18,8 @@ with open('token') as token_file:
 logger.debug(f'Loaded token: {token}')
 logger.debug(f'CWD: {os.getcwd()}')
 
-bot = telebot.TeleBot(token)
+bot = telebot.TeleBot(token.strip())
+
 
 logger.debug(bot.get_webhook_info().ip_address)
 
@@ -71,6 +72,19 @@ def locs(message: Message):
     except:
         bot.send_message(message.chat.id, f"Чтобы запросить локацию, нужно чтобы {username} начал диалог с ботом"
                                           f" и был в администраторах группы")
+
+
+@bot.message_handler(commands=["all"])
+def all(message: Message):
+    try:
+        msg = ""
+        for admin in bot.get_chat_administrators(message.chat.id):
+            msg += f" @{admin.user.username}"
+        msg += message.text
+        bot.send_message(message.chat.id, msg.replace("/all",""))
+
+    except:
+        bot.send_message(message.chat.id, "CHEGO BLYAT")
 
 
 @bot.message_handler(content_types=["location"])
