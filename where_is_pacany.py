@@ -101,7 +101,7 @@ def zaebat(message: Message):
         msg = ""
         name_found = re.findall(r'@[\w\d]+', message.text, re.IGNORECASE)
         if name_found:
-            for i in range(50):
+            for i in range(10):
                 bot.send_message(message.chat.id, name_found[0])
             return
     except Exception as e:
