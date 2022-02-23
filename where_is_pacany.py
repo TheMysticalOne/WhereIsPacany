@@ -73,6 +73,19 @@ def all(message: Message):
     except:
         bot.send_message(message.chat.id, "404.. Как сквозь землю провалился..")
 
+@bot.message_handler(commands=["zaebat"])
+def zaebat(message: Message):
+    try:
+        msg = ""
+        name_found = re.findall(r'@[\w\d]+', message.text, re.IGNORECASE)
+        if name_found:
+            for i in range(10):
+                bot.send_message(message.chat.id, name_found[0])
+            return
+    except Exception as e:
+        reply_to(message, f'Не буду, потому что {e}')
+
+
 
 @bot.message_handler(func=lambda message: True)
 def gde_pacany_handler(message: Message):
