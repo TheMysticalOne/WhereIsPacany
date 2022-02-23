@@ -4,22 +4,22 @@ import re
 
 import telebot
 
-from telebot import types
 from telebot.types import Message
 from loguru import logger
 
 token = ''
 
-GROUP_ID = -1001188592066
-
-with open('token') as token_file:
-    token = token_file.read()
+try:
+    with open('token') as token_file:
+        token = token_file.read()
+except Exception as e:
+    logger.error(f'{e}')
+    exit(1)
 
 logger.debug(f'Loaded token: {token}')
 logger.debug(f'CWD: {os.getcwd()}')
 
 bot = telebot.TeleBot(token.strip())
-
 
 logger.debug(bot.get_webhook_info().ip_address)
 
@@ -59,41 +59,19 @@ def reply_to(message: Message, name: str):
     bot.reply_to(message, f'{prefix.strip().replace("{NAME}", name)} {case.strip()}')
 
 
-@bot.message_handler(commands=["loc"])
-def locs(message: Message):
-    username = message.text.replace("/loc @", "")
-    try:
-        for admin in bot.get_chat_administrators(message.chat.id):
-            if admin.user.username == message.text.replace("/loc @", ""):
-                keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-                button_geo = types.KeyboardButton(text="Я тут сука", request_location=True)
-                keyboard.add(button_geo)
-                bot.send_message(admin.user.id, "Ответь сука", reply_markup=keyboard)
-    except:
-        bot.send_message(message.chat.id, f"Чтобы запросить локацию, нужно чтобы {username} начал диалог с ботом"
-                                          f" и был в администраторах группы")
-
-
 @bot.message_handler(commands=["all"])
 def all(message: Message):
     try:
+        bot_uname = bot.get_me().username
         msg = ""
         for admin in bot.get_chat_administrators(message.chat.id):
-            msg += f" @{admin.user.username}"
+            if bot_uname != admin.user.username:
+                msg += f" @{admin.user.username}"
         msg += message.text
-        bot.send_message(message.chat.id, msg.replace("/all",""))
+        bot.send_message(message.chat.id, msg.replace("/all", ""))
 
     except:
-        bot.send_message(message.chat.id, "CHEGO BLYAT")
-
-
-@bot.message_handler(content_types=["location"])
-def forward(message):
-    if message.location is not None:
-        bot.forward_message(GROUP_ID, message.chat.id, message.id)
-        logger.warning(message)
-        logger.debug(message.location)
-        logger.debug("latitude: %s; longitude: %s" % (message.location.latitude, message.location.longitude))
+        bot.send_message(message.chat.id, "404.. Как сквозь землю провалился..")
 
 
 @bot.message_handler(func=lambda message: True)
