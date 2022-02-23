@@ -95,13 +95,14 @@ def forward(message):
         logger.debug(message.location)
         logger.debug("latitude: %s; longitude: %s" % (message.location.latitude, message.location.longitude))
 
-@bot.message_handler(commands=["zayebat"])
-def zayebat(message: Message):
+@bot.message_handler(commands=["zaebat"])
+def zaebat(message: Message):
     try:
         msg = ""
         name_found = re.findall(r'@[\w\d]+', message.text, re.IGNORECASE)
         if name_found:
-            bot.send_message(message.chat.id, name_found[0])
+            for i in range(50):
+                bot.send_message(message.chat.id, name_found[0])
             return
     except Exception as e:
         reply_to(message, f'Не буду, потому что {e}')
