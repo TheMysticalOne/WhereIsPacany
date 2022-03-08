@@ -1,6 +1,12 @@
 import random
 import os
 import re
+import threading
+from time import sleep
+from typing import List
+
+import peewee
+from peewee import Model
 
 import telebot
 
@@ -8,6 +14,23 @@ from telebot.types import Message
 from loguru import logger
 
 token = ''
+
+db = peewee.SqliteDatabase('wip.db')
+
+
+class BaseModel(Model):
+    class Meta:
+        database = db
+
+
+class UserModel(BaseModel):
+    uname = peewee.CharField()
+    chat_id = peewee.IntegerField()
+    pidorstat = peewee.IntegerField(default=0)
+
+
+db.create_tables([UserModel])
+db.connect(True)
 
 try:
     with open('token') as token_file:
@@ -20,8 +43,27 @@ logger.debug(f'Loaded token: {token}')
 logger.debug(f'CWD: {os.getcwd()}')
 
 bot = telebot.TeleBot(token.strip())
+bot_uname = bot.get_me().username
 
-logger.debug(bot.get_webhook_info().ip_address)
+wh_info = bot.get_webhook_info()
+
+logger.debug(wh_info.ip_address if wh_info.ip_address else "There's no ip address at webhook")
+
+
+def get_user_model(telegram_user: telebot.types.ChatMember, chat: telebot.types.Chat) -> UserModel:
+    user: UserModel = None
+
+    try:
+        user = UserModel.get(UserModel.chat_id == chat.id and UserModel.uname == telegram_user.user.username)
+    except:
+        user = UserModel.create(
+            uname=telegram_user.user.username,
+            chat_id=chat.id,
+            pidorstat=0
+        )
+        db.commit()
+
+    return user
 
 
 def name_is_valid(name: str) -> bool:
@@ -62,7 +104,6 @@ def reply_to(message: Message, name: str):
 @bot.message_handler(commands=["all"])
 def all(message: Message):
     try:
-        bot_uname = bot.get_me().username
         msg = ""
         for admin in bot.get_chat_administrators(message.chat.id):
             if bot_uname != admin.user.username:
@@ -72,6 +113,7 @@ def all(message: Message):
 
     except:
         bot.send_message(message.chat.id, "404.. Как сквозь землю провалился..")
+
 
 @bot.message_handler(commands=["zaebat"])
 def zaebat(message: Message):
@@ -85,6 +127,75 @@ def zaebat(message: Message):
     except Exception as e:
         reply_to(message, f'Не буду, потому что {e}')
 
+
+def async_send(chat: telebot.types.Chat, messages: List[str], delay: int = 1):
+    def _send(chat_: telebot.types.Chat, messages_: List[str], delay_: int = 1):
+        for message in messages_:
+            bot.send_message(chat_.id, message)
+            sleep(delay_)
+
+    th = threading.Thread(target=_send, args=[chat, messages, delay])
+    th.daemon = True
+    th.start()
+
+
+@bot.message_handler(commands=["pidor"])
+def who_is_pidor(message: Message):
+    try:
+        admins = bot.get_chat_administrators(message.chat.id)
+        for admin in admins:
+            if bot_uname == admin.user.username:
+                admins.remove(admin)
+                break
+
+        pidor_of_day = random.choice(admins)
+
+        pidor_user_model = get_user_model(pidor_of_day, message.chat)
+        pidor_user_model.pidorstat += 1
+        pidor_user_model.save()
+
+        doubt_message = "Не может быть..."
+        pidorcase_message = "Не может быть..."
+
+        with open('doubts.txt', encoding='utf-8') as doubds:
+            doubts_cases = doubds.readlines()
+            doubt_message = random.choice(doubts_cases)
+
+        with open('pidorcases.txt', encoding='utf-8') as pidorcases:
+            pidor_cases = pidorcases.readlines()
+            pidorcase_message = random.choice(pidor_cases)
+
+        msg = f"@{pidor_of_day.user.username}, ты - пидор."
+
+        async_send(message.chat, [pidorcase_message, doubt_message, msg.replace("/pidor", "")], 1)
+
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Ой, да вы все тут пидоры, потому что {e}")
+
+
+@bot.message_handler(commands=["pidorstat"])
+def pidorstat(message: Message):
+    try:
+        msg = ""
+
+        bot.send_message(message.chat.id, "Секундочку.. сверяюсь с архивами...")
+
+        pidors = list(
+            UserModel.select().where(UserModel.chat_id == message.chat.id).order_by(UserModel.pidorstat.desc()))
+
+        if not pidors:
+            bot.send_message(message.chat.id, "В этом чате нет пидоров.")
+            return
+
+        for user in pidors:
+            user: UserModel
+
+            msg += f"@{user.uname} {user.pidorstat}-кратный пидор\n"
+
+        bot.send_message(message.chat.id, msg)
+
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Ой, да вы все тут пидоры, потому что {e}")
 
 
 @bot.message_handler(func=lambda message: True)

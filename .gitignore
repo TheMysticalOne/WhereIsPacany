@@ -118,3 +118,5 @@ dmypy.json
 config_/config.json
 /dump/
 /token.txt
+token
+wip.db
