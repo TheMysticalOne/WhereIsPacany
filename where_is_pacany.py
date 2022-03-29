@@ -198,18 +198,27 @@ def pidorstat(message: Message):
         bot.send_message(message.chat.id, f"Ой, да вы все тут пидоры, потому что {e}")
 
 
-@bot.message_handler(func=lambda message: True)
+@bot.message_handler(func=lambda message: True, content_types=["voice", "text"])
 def gde_pacany_handler(message: Message):
     try:
-        with open('questions.txt', encoding='utf-8') as questions_file:
-            questions = questions_file.readlines()
-            for variant in questions:
-                txt = message.text.lower()
-                regex = variant.strip().replace("{NAME}", "(\\w+)")
-                name_found = re.findall(fr'(?u){regex}', txt, re.IGNORECASE)
-                if name_found:
-                    reply_to(message, name_found[0])
-                    return
+        if message.text:
+            with open('questions.txt', encoding='utf-8') as questions_file:
+                questions = questions_file.readlines()
+                for variant in questions:
+                    txt = message.text.lower()
+                    regex = variant.strip().replace("{NAME}", "(\\w+)")
+                    name_found = re.findall(fr'(?u){regex}', txt, re.IGNORECASE)
+                    if name_found:
+                        reply_to(message, name_found[0])
+                        return
+        elif message.voice:
+            with open('audio_responses.txt', encoding='utf-8') as responses_file:
+                responses = responses_file.readlines()
+                response = random.choice(responses)
+                bot.reply_to(message, response)
+                return
+        else:
+            bot.send_message(message.chat.id, "Чел, ты какую-то херобору отправил")
     except:
         bot.send_message(message.chat.id, "Понятия не имею, где он :(")
 
