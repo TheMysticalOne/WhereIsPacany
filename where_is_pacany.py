@@ -198,7 +198,7 @@ def pidorstat(message: Message):
         bot.send_message(message.chat.id, f"Ой, да вы все тут пидоры, потому что {e}")
 
 
-@bot.message_handler(func=lambda message: True, content_types=["audio", "voice", "text"])
+@bot.message_handler(func=lambda message: True, content_types=["voice", "text"])
 def gde_pacany_handler(message: Message):
     try:
         print(message)
