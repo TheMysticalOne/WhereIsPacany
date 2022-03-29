@@ -201,7 +201,6 @@ def pidorstat(message: Message):
 @bot.message_handler(func=lambda message: True, content_types=["voice", "text"])
 def gde_pacany_handler(message: Message):
     try:
-        print(message)
         if message.text:
             with open('questions.txt', encoding='utf-8') as questions_file:
                 questions = questions_file.readlines()
