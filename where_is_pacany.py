@@ -56,7 +56,9 @@ def get_or_create_user_model(telegram_user: telebot.types.User, chat: telebot.ty
     user: UserModel = None
 
     try:
-        user = UserModel.get(UserModel.chat_id == chat.id and UserModel.uname == telegram_user.username)
+        user = UserModel.get(
+            UserModel.chat_id == chat.id and UserModel.uname == telegram_user.username
+            or UserModel.uname == f"user:{telegram_user.username}")
     except:
         user = UserModel.create(
             uname=telegram_user.username if telegram_user.username else f"user:{telegram_user.first_name}",
@@ -74,7 +76,8 @@ def get_or_create_user_model_by_creds(username: str, user_id: int, chat_id: str,
     user: UserModel = None
 
     try:
-        user = UserModel.get(UserModel.chat_id == chat_id and UserModel.uname == username)
+        user = UserModel.get(
+            UserModel.chat_id == chat_id and UserModel.uname == username or UserModel.uname == f"user:{username}")
 
         if user.user_id == user_id and user.uname != username:
             user.uname = username
