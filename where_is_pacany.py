@@ -27,6 +27,7 @@ class UserModel(BaseModel):
     uname = peewee.CharField()
     chat_id = peewee.IntegerField()
     pidorstat = peewee.IntegerField(default=0)
+    voicestat = peewee.IntegerField(default=0)
 
 
 db.create_tables([UserModel])
@@ -59,7 +60,26 @@ def get_user_model(telegram_user: telebot.types.ChatMember, chat: telebot.types.
         user = UserModel.create(
             uname=telegram_user.user.username,
             chat_id=chat.id,
-            pidorstat=0
+            pidorstat=0,
+            voicestat=0
+        )
+        db.commit()
+
+    return user
+
+
+def get_voice_model(telegram_user: telebot.types.User, chat: telebot.types.Chat) -> UserModel:
+    user: UserModel = None
+    logger.debug(f'tg_user: {telegram_user}')
+
+    try:
+        user = UserModel.get(UserModel.chat_id == chat.id and UserModel.uname == telegram_user.username)
+    except:
+        user = UserModel.create(
+            uname=telegram_user.username,
+            chat_id=chat.id,
+            pidorstat=0,
+            voicestat=0
         )
         db.commit()
 
@@ -106,7 +126,7 @@ def all(message: Message):
     try:
         msg = ""
         for admin in bot.get_chat_administrators(message.chat.id):
-            if bot_uname != admin.user.username:
+            if bot_uname != admin.user.username or admin.user.username != 'None':
                 msg += f" @{admin.user.username}"
         msg += message.text
         bot.send_message(message.chat.id, msg.replace("/all", ""))
@@ -197,9 +217,35 @@ def pidorstat(message: Message):
     except Exception as e:
         bot.send_message(message.chat.id, f"Ой, да вы все тут пидоры, потому что {e}")
 
+@bot.message_handler(commands=["voicestat"])
+def voicestat(message: Message):
+    try:
+        msg = ""
+
+        bot.send_message(message.chat.id, "Секундочку.. сверяюсь с архивами...")
+
+        voicewhores = list(
+            UserModel.select().where(UserModel.chat_id == message.chat.id).order_by(UserModel.voicestat.desc()))
+
+        if not voicewhores:
+            bot.send_message(message.chat.id, "В этом чате нет войсоблядей.")
+            return
+
+        for user in voicewhores:
+            user: UserModel
+
+            msg += f"@{user.uname} {user.voicestat}-кратная войсоблядь\n"
+
+        bot.send_message(message.chat.id, msg)
+
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Ой, да вы все тут войсобляди, потому что {e}")
+
 
 @bot.message_handler(func=lambda message: True, content_types=["voice", "text"])
 def gde_pacany_handler(message: Message):
+    message_sender = message.from_user
+    logger.debug(f'message_sender: {message_sender}')
     try:
         if message.text:
             with open('questions.txt', encoding='utf-8') as questions_file:
@@ -216,6 +262,9 @@ def gde_pacany_handler(message: Message):
                 responses = responses_file.readlines()
                 response = random.choice(responses)
                 bot.reply_to(message, response)
+                user = get_voice_model(message_sender, message.chat)
+                user.voicestat += 1
+                user.save()
                 return
         else:
             bot.send_message(message.chat.id, "Чел, ты какую-то херобору отправил")
