@@ -25,6 +25,7 @@ class BaseModel(Model):
 
 class UserModel(BaseModel):
     uname = peewee.CharField()
+    user_id = peewee.IntegerField()
     chat_id = peewee.IntegerField()
     pidorstat = peewee.IntegerField(default=0)
     voicestat = peewee.IntegerField(default=0)
@@ -43,7 +44,7 @@ except Exception as e:
 logger.debug(f'Loaded token: {token}')
 logger.debug(f'CWD: {os.getcwd()}')
 
-bot = telebot.TeleBot(token.strip())
+bot = telebot.TeleBot(token.strip(), parse_mode='MarkdownV2')
 bot_uname = bot.get_me().username
 
 wh_info = bot.get_webhook_info()
@@ -51,38 +52,62 @@ wh_info = bot.get_webhook_info()
 logger.debug(wh_info.ip_address if wh_info.ip_address else "There's no ip address at webhook")
 
 
-def get_user_model(telegram_user: telebot.types.ChatMember, chat: telebot.types.Chat) -> UserModel:
-    user: UserModel = None
-
-    try:
-        user = UserModel.get(UserModel.chat_id == chat.id and UserModel.uname == telegram_user.user.username)
-    except:
-        user = UserModel.create(
-            uname=telegram_user.user.username,
-            chat_id=chat.id,
-            pidorstat=0,
-            voicestat=0
-        )
-        db.commit()
-
-    return user
-
-
-def get_voice_model(telegram_user: telebot.types.User, chat: telebot.types.Chat) -> UserModel:
+def get_or_create_user_model(telegram_user: telebot.types.User, chat: telebot.types.Chat) -> UserModel:
     user: UserModel = None
 
     try:
         user = UserModel.get(UserModel.chat_id == chat.id and UserModel.uname == telegram_user.username)
     except:
         user = UserModel.create(
-            uname=telegram_user.username,
+            uname=telegram_user.username if telegram_user.username else f"user:{telegram_user.first_name}",
             chat_id=chat.id,
+            user_id=telegram_user.id,
             pidorstat=0,
             voicestat=0
         )
         db.commit()
 
     return user
+
+
+def get_or_create_user_model_by_creds(username: str, user_id: int, chat_id: str, chat: telebot.types.Chat) -> UserModel:
+    user: UserModel = None
+
+    try:
+        user = UserModel.get(UserModel.chat_id == chat_id and UserModel.uname == username)
+
+        if user.user_id == user_id and user.uname != username:
+            user.uname = username
+            user.save()
+
+    except:
+        user = UserModel.create(
+            uname=username,
+            chat_id=chat.id,
+            user_id=user_id,
+            pidorstat=0,
+            voicestat=0
+        )
+        db.commit()
+
+    return user
+
+
+def get_registered_users(chat: telebot.types.Chat) -> List[UserModel]:
+    try:
+        return [um for um in UserModel.select().where(UserModel.chat_id == chat.id)]
+    except:
+        return []
+
+
+def get_tag(user: UserModel):
+    if not user.uname.startswith('user:'):
+        tag = f"@{user.uname}"
+    else:
+        uname = str(user.uname)
+        tag = f"[{uname.replace('user:', '')}](tg://user?id={user.user_id})"
+
+    return tag
 
 
 def name_is_valid(name: str) -> bool:
@@ -95,14 +120,14 @@ def name_is_valid(name: str) -> bool:
     return False
 
 
-def reply_to(message: Message, name: str):
+def reply_where_pacan(message: Message, name: str):
     case = 'потерялся'
     prefix = 'Он'
 
     name = name.title()
 
     if not name_is_valid(name):
-        bot.reply_to(message, f'Я не знаю, кто такой {name}')
+        reply_to(message, escape_string(f'Я не знаю, кто такой {name}'))
         return
 
     try:
@@ -117,21 +142,21 @@ def reply_to(message: Message, name: str):
     except:
         pass
 
-    bot.reply_to(message, f'{prefix.strip().replace("{NAME}", name)} {case.strip()}')
+    reply_to(message, f'{prefix.strip().replace("{NAME}", name)} {case.strip()}')
 
 
 @bot.message_handler(commands=["all"])
 def all(message: Message):
     try:
         msg = ""
-        for admin in bot.get_chat_administrators(message.chat.id):
-            if bot_uname != admin.user.username or admin.user.username != 'None':
-                msg += f" @{admin.user.username}"
+        registered = get_registered_users(message.chat)
+        for user in registered:
+            msg += f" {get_tag(user)}"
         msg += message.text
-        bot.send_message(message.chat.id, msg.replace("/all", ""))
+        send_message(message.chat, msg.replace("/all", "").replace(f"@{bot.user.username}", ''))
 
     except:
-        bot.send_message(message.chat.id, "404.. Как сквозь землю провалился..")
+        send_message(message.chat, "404.. Как сквозь землю провалился..")
 
 
 @bot.message_handler(commands=["zaebat"])
@@ -141,16 +166,33 @@ def zaebat(message: Message):
         name_found = re.findall(r'@[\w\d]+', message.text, re.IGNORECASE)
         if name_found:
             for i in range(10):
-                bot.send_message(message.chat.id, name_found[0])
+                send_message(message.chat, name_found[0])
             return
     except Exception as e:
-        reply_to(message, f'Не буду, потому что {e}')
+        reply_where_pacan(message, f'Не буду, потому что {e}')
+
+
+def escape_string(string: str):
+    return string.replace('_', '\\_') \
+        .replace('*', '\\*') \
+        .replace('~', '\\~') \
+        .replace('`', '\\`') \
+        .replace('>', '\\>') \
+        .replace('#', '\\#') \
+        .replace('+', '\\+') \
+        .replace('-', '\\-') \
+        .replace('=', '\\=') \
+        .replace('|', '\\|') \
+        .replace('{', '\\{') \
+        .replace('}', '\\}') \
+        .replace('.', '\\.') \
+        .replace('!', '\\!')
 
 
 def async_send(chat: telebot.types.Chat, messages: List[str], delay: int = 1):
     def _send(chat_: telebot.types.Chat, messages_: List[str], delay_: int = 1):
         for message in messages_:
-            bot.send_message(chat_.id, message)
+            bot.send_message(chat_.id, escape_string(message))
             sleep(delay_)
 
     th = threading.Thread(target=_send, args=[chat, messages, delay])
@@ -158,18 +200,21 @@ def async_send(chat: telebot.types.Chat, messages: List[str], delay: int = 1):
     th.start()
 
 
+def send_message(chat: telebot.types.Chat, message):
+    bot.send_message(chat.id, escape_string(message))
+
+
+def reply_to(msg: telebot.types.Message, message):
+    bot.reply_to(msg, escape_string(message))
+
+
 @bot.message_handler(commands=["pidor"])
 def who_is_pidor(message: Message):
     try:
-        admins = bot.get_chat_administrators(message.chat.id)
-        for admin in admins:
-            if bot_uname == admin.user.username:
-                admins.remove(admin)
-                break
-
-        pidor_of_day = random.choice(admins)
-
-        pidor_user_model = get_user_model(pidor_of_day, message.chat)
+        registered = list(get_registered_users(message.chat))
+        pidor_of_day = random.choice(registered)
+        pidor_user_model = get_or_create_user_model_by_creds(pidor_of_day.uname, pidor_of_day.chat_id,
+                                                             pidor_of_day.user_id, message.chat)
         pidor_user_model.pidorstat += 1
         pidor_user_model.save()
 
@@ -184,12 +229,43 @@ def who_is_pidor(message: Message):
             pidor_cases = pidorcases.readlines()
             pidorcase_message = random.choice(pidor_cases)
 
-        msg = f"@{pidor_of_day.user.username}, ты - пидор."
+        msg = f"{get_tag(pidor_of_day)}, ты - пидор."
 
         async_send(message.chat, [pidorcase_message, doubt_message, msg.replace("/pidor", "")], 1)
 
     except Exception as e:
-        bot.send_message(message.chat.id, f"Ой, да вы все тут пидоры, потому что {e}")
+        send_message(message.chat, f"Ой, да вы все тут пидоры, потому что {e}")
+
+
+@bot.message_handler(commands=["register"])
+def register(message: Message):
+    try:
+        if message.from_user.is_bot:
+            send_message(message.chat, "Не буду я ботов регать")
+            return
+
+        get_or_create_user_model(message.from_user, message.chat)
+
+    except Exception as e:
+        send_message(message.chat, f"Мда, что-то пошло не так: {e}")
+
+
+@bot.message_handler(commands=["register_admins"])
+def register(message: Message):
+    try:
+        admins = bot.get_chat_administrators(message.chat.id)
+        for admin in admins:
+            if bot_uname == admin.user.username:
+                admins.remove(admin)
+                break
+
+        for admin in admins:
+            get_or_create_user_model(admin.user, message.chat)
+
+        reply_to(message, "Готово!")
+
+    except Exception as e:
+        send_message(message.chat, f"Мда, что-то пошло не так: {e}")
 
 
 @bot.message_handler(commands=["pidorstat"])
@@ -197,13 +273,13 @@ def pidorstat(message: Message):
     try:
         msg = ""
 
-        bot.send_message(message.chat.id, "Секундочку.. сверяюсь с архивами...")
+        send_message(message.chat, "Секундочку.. сверяюсь с архивами...")
 
         pidors = list(
             UserModel.select().where(UserModel.chat_id == message.chat.id).order_by(UserModel.pidorstat.desc()))
 
         if not pidors:
-            bot.send_message(message.chat.id, "В этом чате нет пидоров.")
+            send_message(message.chat, "В этом чате нет пидоров.")
             return
 
         for user in pidors:
@@ -211,23 +287,25 @@ def pidorstat(message: Message):
 
             msg += f"@{user.uname} {user.pidorstat}-кратный пидор\n"
 
-        bot.send_message(message.chat.id, msg)
+        send_message(message.chat, msg)
 
     except Exception as e:
-        bot.send_message(message.chat.id, f"Ой, да вы все тут пидоры, потому что {e}")
+        send_message(message.chat, f"Ой, да вы все тут пидоры, потому что {e}")
+
 
 @bot.message_handler(commands=["voicestat"])
 def voicestat(message: Message):
     try:
         msg = ""
 
-        bot.send_message(message.chat.id, "Секундочку.. сверяюсь с архивами...")
+        send_message(message.chat, "Секундочку.. сверяюсь с архивами...")
 
         voicewhores = list(
-            UserModel.select().where(UserModel.chat_id == message.chat.id).order_by(UserModel.voicestat.desc()))
+            UserModel.select().where(UserModel.chat_id == message.chat.id and UserModel.voicestat != 0).order_by(
+                UserModel.voicestat.desc()))
 
         if not voicewhores:
-            bot.send_message(message.chat.id, "В этом чате нет войсоблядей.")
+            send_message(message.chat, "В этом чате нет войсоблядей.")
             return
 
         for user in voicewhores:
@@ -235,15 +313,19 @@ def voicestat(message: Message):
 
             msg += f"@{user.uname} {user.voicestat}-кратная войсоблядь\n"
 
-        bot.send_message(message.chat.id, msg)
+        send_message(message.chat, msg)
 
     except Exception as e:
-        bot.send_message(message.chat.id, f"Ой, да вы все тут войсобляди, потому что {e}")
+        send_message(message.chat, f"Ой, да вы все тут войсобляди, потому что {e}")
 
 
 @bot.message_handler(func=lambda message: True, content_types=["voice", "text"])
 def gde_pacany_handler(message: Message):
     message_sender = message.from_user
+
+    if message.from_user.is_bot:
+        get_or_create_user_model(message.from_user, message.chat)
+
     try:
         if message.text:
             with open('questions.txt', encoding='utf-8') as questions_file:
@@ -253,21 +335,21 @@ def gde_pacany_handler(message: Message):
                     regex = variant.strip().replace("{NAME}", "(\\w+)")
                     name_found = re.findall(fr'(?u){regex}', txt, re.IGNORECASE)
                     if name_found:
-                        reply_to(message, name_found[0])
+                        reply_where_pacan(message, name_found[0])
                         return
         elif message.voice:
             with open('audio_responses.txt', encoding='utf-8') as responses_file:
                 responses = responses_file.readlines()
                 response = random.choice(responses)
-                bot.reply_to(message, response)
-                user = get_voice_model(message_sender, message.chat)
+                reply_to(message, response)
+                user = get_or_create_user_model(message_sender, message.chat)
                 user.voicestat += 1
                 user.save()
                 return
         else:
-            bot.send_message(message.chat.id, "Чел, ты какую-то херобору отправил")
+            send_message(message.chat, "Чел, ты какую-то херобору отправил")
     except:
-        bot.send_message(message.chat.id, "Понятия не имею, где он :(")
+        send_message(message.chat, "Понятия не имею, где он :(")
 
 
 bot.infinity_polling()
