@@ -70,7 +70,6 @@ def get_user_model(telegram_user: telebot.types.ChatMember, chat: telebot.types.
 
 def get_voice_model(telegram_user: telebot.types.User, chat: telebot.types.Chat) -> UserModel:
     user: UserModel = None
-    logger.debug(f'tg_user: {telegram_user}')
 
     try:
         user = UserModel.get(UserModel.chat_id == chat.id and UserModel.uname == telegram_user.username)
@@ -245,7 +244,6 @@ def voicestat(message: Message):
 @bot.message_handler(func=lambda message: True, content_types=["voice", "text"])
 def gde_pacany_handler(message: Message):
     message_sender = message.from_user
-    logger.debug(f'message_sender: {message_sender}')
     try:
         if message.text:
             with open('questions.txt', encoding='utf-8') as questions_file:
