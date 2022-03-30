@@ -275,9 +275,9 @@ def pidorstat(message: Message):
 
         send_message(message.chat, "Секундочку.. сверяюсь с архивами...")
 
-        pidors = list(
-            UserModel.select().where(UserModel.chat_id == message.chat.id and UserModel.pidorstat != 0).order_by(
-                UserModel.pidorstat.desc()))
+        pidors = [p for p in
+                  UserModel.select().where(UserModel.chat_id == message.chat.id and UserModel.pidorstat != 0).order_by(
+                      UserModel.pidorstat.desc())]
 
         if not pidors:
             send_message(message.chat, "В этом чате нет пидоров.")
@@ -301,9 +301,9 @@ def voicestat(message: Message):
 
         send_message(message.chat, "Секундочку.. сверяюсь с архивами...")
 
-        voicewhores = list(
-            UserModel.select().where(UserModel.chat_id == message.chat.id and UserModel.voicestat != 0).order_by(
-                UserModel.voicestat.desc()))
+        voicewhores = [v for v in UserModel.select().where(
+            UserModel.chat_id == message.chat.id and UserModel.voicestat != 0).order_by(
+            UserModel.voicestat.desc())]
 
         if not voicewhores:
             send_message(message.chat, "В этом чате нет войсоблядей.")
