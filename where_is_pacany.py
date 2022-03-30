@@ -209,10 +209,8 @@ def who_is_pidor(message: Message):
     try:
         registered = list(get_registered_users(message.chat))
         pidor_of_day = random.choice(registered)
-        pidor_user_model = get_or_create_user_model_by_creds(pidor_of_day.uname, pidor_of_day.chat_id,
-                                                             pidor_of_day.user_id, message.chat)
-        pidor_user_model.pidorstat += 1
-        pidor_user_model.save()
+        pidor_of_day.pidorstat += 1
+        pidor_of_day.save()
 
         doubt_message = "Не может быть..."
         pidorcase_message = "Не может быть..."
