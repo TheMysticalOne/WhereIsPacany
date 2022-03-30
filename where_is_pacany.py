@@ -76,10 +76,6 @@ def get_or_create_user_model_by_creds(username: str, user_id: int, chat_id: str,
     try:
         user = UserModel.get(UserModel.chat_id == chat_id and UserModel.user_id == user_id)
 
-        if user.user_id == user_id and user.uname != username:
-            user.uname = username
-            user.save()
-
     except:
         user = UserModel.create(
             uname=username,
@@ -275,9 +271,14 @@ def pidorstat(message: Message):
 
         send_message(message.chat, "Секундочку.. сверяюсь с архивами...")
 
-        pidors = [p for p in
-                  UserModel.select().where(UserModel.chat_id == message.chat.id and UserModel.pidorstat != 0).order_by(
-                      UserModel.pidorstat.desc())]
+        q = UserModel.select().where(UserModel.chat_id == message.chat.id and UserModel.pidorstat != 0).order_by(
+            UserModel.pidorstat.desc())
+
+        if not q:
+            send_message(message.chat, "В этом чате нет пидоров.")
+            return
+
+        pidors = [p for p in q]
 
         if not pidors:
             send_message(message.chat, "В этом чате нет пидоров.")
@@ -301,9 +302,11 @@ def voicestat(message: Message):
 
         send_message(message.chat, "Секундочку.. сверяюсь с архивами...")
 
-        voicewhores = [v for v in UserModel.select().where(
+        q = UserModel.select().where(
             UserModel.chat_id == message.chat.id and UserModel.voicestat != 0).order_by(
-            UserModel.voicestat.desc())]
+            UserModel.voicestat.desc())
+
+        voicewhores = [v for v in q]
 
         if not voicewhores:
             send_message(message.chat, "В этом чате нет войсоблядей.")
