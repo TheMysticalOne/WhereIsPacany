@@ -6,6 +6,7 @@ from time import sleep
 from typing import List
 
 import peewee
+from faker import Faker
 from peewee import Model
 
 import telebot
@@ -139,6 +140,18 @@ def reply_where_pacan(message: Message, name: str):
         pass
 
     reply_to(message, f'{prefix.strip().replace("{NAME}", name)} {case.strip()}')
+
+
+def generate_hoku() -> str:
+    f = Faker("ru_RU")
+    head = str(f.date_of_birth(None, 40, 100)) + ". " + f.job() + ".\n" + f.name()+".\n"
+    return "\n".join([head] + [f.sentence(nb_words=4) for i in range(3)])
+
+
+@bot.message_handler(commands=["hoku"])
+def hoku(message: Message):
+    logger.warning("asgasg")
+    send_message(message.chat, generate_hoku())
 
 
 @bot.message_handler(commands=["all"])
