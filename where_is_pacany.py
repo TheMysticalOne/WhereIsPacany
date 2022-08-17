@@ -25,6 +25,7 @@ class BaseModel(Model):
 
 
 class UserModel(BaseModel):
+    uniq_id = peewee.IntegerField()
     uname = peewee.CharField()
     user_id = peewee.IntegerField()
     chat_id = peewee.IntegerField()
@@ -53,13 +54,18 @@ wh_info = bot.get_webhook_info()
 logger.debug(wh_info.ip_address if wh_info.ip_address else "There's no ip address at webhook")
 
 
+def get_uniq_id(gr: int, user: int):
+    return gr + user
+
+
 def get_or_create_user_model(telegram_user: telebot.types.User, chat: telebot.types.Chat) -> UserModel:
     user: UserModel = None
 
     try:
-        user = UserModel.get(UserModel.chat_id == chat.id and UserModel.user_id == telegram_user.id)
+        user = UserModel.get(UserModel.uniq_id == get_uniq_id(chat.id, telegram_user.id))
     except:
         user = UserModel.create(
+            uniq_id=get_uniq_id(chat.id, telegram_user.id),
             uname=telegram_user.username if telegram_user.username else f"user:{telegram_user.first_name}",
             chat_id=chat.id,
             user_id=telegram_user.id,
@@ -75,10 +81,11 @@ def get_or_create_user_model_by_creds(username: str, user_id: int, chat_id: str,
     user: UserModel = None
 
     try:
-        user = UserModel.get(UserModel.chat_id == chat_id and UserModel.user_id == user_id)
+        user = UserModel.get(UserModel.uniq_id == get_uniq_id(chat_id, user_id))
 
     except:
         user = UserModel.create(
+            uniq_id=get_uniq_id(chat_id, user_id),
             uname=username,
             chat_id=chat.id,
             user_id=user_id,
@@ -144,7 +151,7 @@ def reply_where_pacan(message: Message, name: str):
 
 def generate_hoku() -> str:
     f = Faker("ru_RU")
-    head = str(f.date_of_birth(None, 40, 100)) + ". " + f.job() + ".\n" + f.name()+".\n"
+    head = str(f.date_of_birth(None, 40, 100)) + ". " + f.job() + ".\n" + f.name() + ".\n"
     return "\n".join([head] + [f.sentence(nb_words=4) for i in range(3)])
 
 
