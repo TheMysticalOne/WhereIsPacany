@@ -270,12 +270,16 @@ def async_send(chat: telebot.types.Chat, messages: List[str], delay: int = 1):
     th.start()
 
 
-def send_message(chat: telebot.types.Chat, message):
+def send_message(chat: telebot.types.Chat, message: str):
+    escaped = escape_string(message)
+    logger.info(f"Sending message to {chat.id}: {escaped}")
     bot.send_message(chat.id, escape_string(message))
 
 
-def reply_to(msg: telebot.types.Message, message):
-    bot.reply_to(msg, escape_string(message))
+def reply_to(msg: telebot.types.Message, message: str):
+    escaped = escape_string(message)
+    logger.info(f"Sending reply to {msg.text}: {escaped}")
+    bot.reply_to(msg, escaped)
 
 
 @bot.message_handler(commands=["pidor"])
