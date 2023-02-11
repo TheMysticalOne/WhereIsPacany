@@ -18,7 +18,7 @@ import openai
 
 try:
     with open('aitoken') as token_file:
-        openai.api_key = str(token_file.read())
+        openai.api_key = str(token_file.read()).strip("\n ")
 except Exception as e:
     logger.error(f'{e}')
     exit(1)
