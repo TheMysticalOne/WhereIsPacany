@@ -137,6 +137,8 @@ def reply_where_pacan(message: Message, name: str, use_openai: False):
 
     name = name.title()
 
+    logger.info(f"Replying where pacan {name}")
+
     if use_openai:
         completion = openai.Completion.create(
             engine=model_engine,
@@ -237,7 +239,7 @@ def zaebat(message: Message):
                 send_message(message.chat, name_found[0])
             return
     except Exception as e:
-        reply_where_pacan(message, f'Не буду, потому что {e}')
+        pass
 
 
 def escape_string(string: str):
@@ -397,6 +399,7 @@ def voicestat(message: Message):
 def reply_handler(message: Message, use_ai: bool):
     try:
         if message.text:
+            logger.info(f"Handle text {message.text}, AI: {use_ai}")
             with open('questions.txt', encoding='utf-8') as questions_file:
                 questions = questions_file.readlines()
                 for variant in questions:
@@ -410,6 +413,7 @@ def reply_handler(message: Message, use_ai: bool):
                         return
 
         elif message.voice:
+            logger.info(f"Handle voice openai, AI: {use_ai}")
             reply_to_voice(message, use_ai)
         else:
             send_message(message.chat, "Чел, ты какую-то херобору отправил")
