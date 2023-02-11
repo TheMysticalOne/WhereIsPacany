@@ -256,6 +256,8 @@ def escape_string(string: str):
         .replace('{', '\\{') \
         .replace('}', '\\}') \
         .replace('.', '\\.') \
+        .replace(')', '\\)') \
+        .replace('(', '\\(') \
         .replace('!', '\\!')
 
 
@@ -421,8 +423,10 @@ def reply_handler(message: Message, use_ai: bool):
             reply_to_voice(message, use_ai)
         else:
             send_message(message.chat, "Чел, ты какую-то херобору отправил")
-    except:
-        send_message(message.chat, "Понятия не имею, где он :(")
+
+    except Exception as e:
+        send_message(
+            message.chat, f"Мои агентам не удалось выяснить его местонахождение, потому что '{e}'")
 
 
 @bot.message_handler(func=lambda message: True, content_types=["voice", "text"])
