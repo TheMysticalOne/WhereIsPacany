@@ -119,4 +119,5 @@ config_/config.json
 /dump/
 /token.txt
 token
+aitoken
 wip.db
