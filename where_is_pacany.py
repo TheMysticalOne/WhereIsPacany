@@ -35,9 +35,18 @@ class BaseModel(Model):
         database = db
 
 
+BOT_ROLE_GOPNIK = "гопник"
+BOT_ROLE_BYDLO = "быдло"
+BOT_ROLE_PRINCESS = "принцесса"
+BOT_ROLE_DETECTIVE = "детектив"
+BOT_ROLE_RAPER = "рэпер"
+BOT_ROLE_POET = "поэт"
+
+
 class ChatModel(BaseModel):
     gid = peewee.IntegerField(unique=True, primary_key=True)
     use_openai = peewee.BooleanField(default=False)
+    bot_role = peewee.TextField(default="")
 
 
 class UserModel(BaseModel):
@@ -131,18 +140,35 @@ def name_is_valid(name: str) -> bool:
     return False
 
 
-def reply_where_pacan(message: Message, name: str, use_openai: False):
+def get_ai_role_additional_request(chat_model: ChatModel) -> str:
+    if chat_model.bot_role == BOT_ROLE_GOPNIK:
+        return ", как если бы ты был гопником"
+    elif chat_model.bot_role == BOT_ROLE_BYDLO:
+        return ", как если бы ты был быдлом"
+    elif chat_model.bot_role == BOT_ROLE_PRINCESS:
+        return ", как если бы ты был принцессой"
+    elif chat_model.bot_role == BOT_ROLE_DETECTIVE:
+        return ", как если бы ты был детективом"
+    elif chat_model.bot_role == BOT_ROLE_RAPER:
+        return ", как если бы ты был рэпером"
+    elif chat_model.bot_role == BOT_ROLE_POET:
+        return ", как если бы ты был поэтом"
+
+    return ""
+
+
+def reply_where_pacan(message: Message, name: str, chat_model: ChatModel):
     case = 'потерялся'
     prefix = 'Он'
 
     name = name.title()
 
-    logger.info(f"Replying where pacan {name}")
+    logger.info(f"Replying where pacan {name}, role mode: {chat_model.bot_role}, ai mode: {chat_model.use_openai}")
 
-    if use_openai:
+    if chat_model.use_openai:
         completion = openai.Completion.create(
             engine=model_engine,
-            prompt=f"Предположи самое необычное место, где мог бы находиться {name}",
+            prompt=f"Предположи самое необычное место, где мог бы находиться {name}{get_ai_role_additional_request(chat_model)}.",
             max_tokens=128,
             temperature=0.8,
             top_p=1.0,
@@ -150,8 +176,8 @@ def reply_where_pacan(message: Message, name: str, use_openai: False):
             presence_penalty=0.0
         )
 
-        ai_reply = completion.choices[0].text
-        reply_to(message, ai_reply)
+        ai_reply: str = completion.choices[0].text
+        reply_to(message, ai_reply.strip('"'))
 
     else:
         if not name_is_valid(name):
@@ -174,11 +200,11 @@ def reply_where_pacan(message: Message, name: str, use_openai: False):
             message, f'{prefix.strip().replace("{NAME}", name)} {case.strip()}')
 
 
-def reply_to_voice(message: Message, use_openai: False):
-    if use_openai:
+def reply_to_voice(message: Message, chat_model: ChatModel):
+    if chat_model.use_openai:
         completion = openai.Completion.create(
             engine=model_engine,
-            prompt="Скажи в грубой форме, что голосовое сообщение это плохо, как если бы ты был гопником",
+            prompt=f"Скажи в грубой форме, что голосовое сообщение это плохо{get_ai_role_additional_request(chat_model)}.",
             max_tokens=64,
             temperature=0.8,
             top_p=1.0,
@@ -186,8 +212,8 @@ def reply_to_voice(message: Message, use_openai: False):
             presence_penalty=0.0
         )
 
-        ai_reply = completion.choices[0].text
-        reply_to(message, ai_reply)
+        ai_reply: str = completion.choices[0].text
+        reply_to(message, ai_reply.strip('"'))
 
     else:
         with open('audio_responses.txt', encoding='utf-8') as responses_file:
@@ -209,7 +235,23 @@ def generate_hoku() -> str:
 
 @bot.message_handler(commands=["hoku"])
 def hoku(message: Message):
-    send_message(message.chat, generate_hoku())
+    chat_model = get_or_create_chat_model(message.chat)
+
+    if chat_model.use_openai:
+        completion = openai.Completion.create(
+            engine=model_engine,
+            prompt=f"Сочини хокку на русском{get_ai_role_additional_request(chat_model)}.",
+            max_tokens=64,
+            temperature=0.8,
+            top_p=1.0,
+            frequency_penalty=0.5,
+            presence_penalty=0.0
+        )
+
+        ai_reply: str = completion.choices[0].text
+        reply_to(message, ai_reply.strip('"'))
+    else:
+        send_message(message.chat, generate_hoku())
 
 
 @bot.message_handler(commands=["all"])
@@ -356,14 +398,14 @@ def pidorstat(message: Message):
 
         send_message(message.chat, "Секундочку.. сверяюсь с архивами...")
 
-        q = UserModel.select().where(UserModel.chat == chat_model and UserModel.pidorstat != 0).order_by(
+        q = UserModel.select().where(UserModel.chat == chat_model).order_by(
             UserModel.pidorstat.desc())
 
         if not q:
             send_message(message.chat, "В этом чате нет пидоров.")
             return
 
-        pidors = [p for p in q]
+        pidors = [p for p in q if p.pidorstat != 0]
 
         if not pidors:
             send_message(message.chat, "В этом чате нет пидоров.")
@@ -384,6 +426,31 @@ def command_text(command: str, text: str) -> str:
     return text.lstrip(f"/{command}").strip()
 
 
+@bot.message_handler(commands=["rolemode"])
+def voicestat(message: Message):
+    chat_model = get_or_create_chat_model(message.chat)
+    role = command_text("rolemode", message.text)
+
+    if role == "reset":
+        send_message(message.chat, "Окей")
+        chat_model.bot_rile = ""
+        return
+    
+    allowe_roles = [BOT_ROLE_BYDLO, BOT_ROLE_DETECTIVE, BOT_ROLE_PRINCESS, BOT_ROLE_GOPNIK, BOT_ROLE_RAPER, BOT_ROLE_POET]
+
+    if role not in allowe_roles:
+        reply = "Я могу играть только эти роли: "
+        for allowed_role in allowe_roles:
+            reply += allowed_role + ", "
+
+        send_message(message.chat, reply.rstrip(", "))
+        return
+    
+    send_message(message.chat, f"Теперь я {role}")
+    chat_model.bot_role = role
+    chat_model.save()
+
+
 @bot.message_handler(commands=["aimode"])
 def voicestat(message: Message):
     chat_model = get_or_create_chat_model(message.chat)
@@ -402,10 +469,11 @@ def voicestat(message: Message):
     chat_model.save()
 
 
-def reply_handler(message: Message, use_ai: bool):
+def reply_handler(message: Message, chat_model: ChatModel):
     try:
         if message.text:
-            logger.info(f"Handle text {message.text}, AI: {use_ai}")
+            logger.info(
+                f"Handle text {message.text}, AI: {chat_model.use_openai}")
             with open('questions.txt', encoding='utf-8') as questions_file:
                 questions = questions_file.readlines()
                 for variant in questions:
@@ -415,12 +483,13 @@ def reply_handler(message: Message, use_ai: bool):
                         fr'(?u){regex}', txt, re.IGNORECASE)
 
                     if name_found:
-                        reply_where_pacan(message, name_found[0], use_ai)
+                        reply_where_pacan(
+                            message, name_found[0], chat_model)
                         return
 
         elif message.voice:
-            logger.info(f"Handle voice openai, AI: {use_ai}")
-            reply_to_voice(message, use_ai)
+            logger.info(f"Handle voice openai, AI: {chat_model.use_openai}")
+            reply_to_voice(message, chat_model)
         else:
             send_message(message.chat, "Чел, ты какую-то херобору отправил")
 
@@ -438,7 +507,7 @@ def gde_pacany_handler(message: Message):
     if not message_sender.is_bot:
         get_or_create_user_model(message.from_user, chat_model)
 
-    reply_handler(message, chat_model.use_openai)
+    reply_handler(message, chat_model)
 
 
 bot.infinity_polling()
