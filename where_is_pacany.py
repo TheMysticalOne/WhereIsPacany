@@ -169,7 +169,7 @@ def reply_where_pacan(message: Message, name: str, chat_model: ChatModel):
         completion = openai.Completion.create(
             engine=model_engine,
             prompt=f"Предположи самое необычное место, где мог бы находиться {name}{get_ai_role_additional_request(chat_model)}.",
-            max_tokens=128,
+            max_tokens=256,
             temperature=0.8,
             top_p=1.0,
             frequency_penalty=0.5,
@@ -205,7 +205,7 @@ def reply_to_voice(message: Message, chat_model: ChatModel):
         completion = openai.Completion.create(
             engine=model_engine,
             prompt=f"Скажи в грубой форме, что голосовое сообщение это плохо{get_ai_role_additional_request(chat_model)}.",
-            max_tokens=64,
+            max_tokens=256,
             temperature=0.8,
             top_p=1.0,
             frequency_penalty=0.5,
@@ -241,7 +241,7 @@ def hoku(message: Message):
         completion = openai.Completion.create(
             engine=model_engine,
             prompt=f"Сочини хокку на русском{get_ai_role_additional_request(chat_model)}.",
-            max_tokens=64,
+            max_tokens=256,
             temperature=0.8,
             top_p=1.0,
             frequency_penalty=0.5,
